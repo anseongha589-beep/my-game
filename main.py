@@ -1,9 +1,11 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import time
-import random
 from pathlib import Path
 
+# =========================================
+# 기본 설정
+# =========================================
 st.set_page_config(
     page_title="ABANDONED HOSPITAL",
     page_icon="🏥",
@@ -11,24 +13,27 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# -------------------------------------
-# 키보드 입력 컴포넌트
-# -------------------------------------
+# 키보드 컴포넌트 폴더
+KEYBOARD_PATH = Path(__file__).parent / "keyboard"
+
+if not KEYBOARD_PATH.exists() or not (KEYBOARD_PATH / "index.html").exists():
+    st.error("keyboard/index.html 파일을 찾을 수 없습니다. GitHub 폴더 구조를 확인해 주세요.")
+    st.stop()
+
 keyboard = components.declare_component(
     "hospital_keyboard",
-    path=str(Path(__file__).parent / "keyboard")
+    path=str(KEYBOARD_PATH)
 )
 
-# -------------------------------------
-# 게임 설정
-# -------------------------------------
 GAME_TIME = 30 * 60
 
+# =========================================
+# 방 정보
+# =========================================
 ROOMS = {
     "ward": {
         "name": "폐쇄 병동",
         "description": "오래된 침대와 먼지 쌓인 책상들이 놓여 있다.",
-        "color": "#26343b",
         "objects": {
             "침대 위 메모": (1, 1),
             "벽의 달력": (4, 1),
@@ -40,7 +45,6 @@ ROOMS = {
     "records": {
         "name": "기록 보관실",
         "description": "환자 기록이 가득한 어두운 보관실이다.",
-        "color": "#302c3a",
         "objects": {
             "환자 기록 선반": (1, 1),
             "색깔 분류표": (3, 1),
@@ -51,7 +55,6 @@ ROOMS = {
     "control": {
         "name": "중앙 통제실",
         "description": "오래된 발전기와 작동하지 않는 모니터가 보인다.",
-        "color": "#34352b",
         "objects": {
             "발전기": (1, 1),
             "스위치": (3, 1),
@@ -62,7 +65,6 @@ ROOMS = {
     "basement": {
         "name": "지하 출구",
         "description": "차가운 공기가 흐르는 지하 통로다.",
-        "color": "#263238",
         "objects": {
             "배관 메모": (1, 1),
             "비상등": (3, 1),
@@ -72,7 +74,7 @@ ROOMS = {
     },
 }
 
-# 벽과 장애물
+# 이동할 수 없는 칸
 WALLS = {
     "ward": {(2, 0), (2, 1), (2, 2), (0, 4)},
     "records": {(2, 2), (2, 3), (3, 3), (0, 2)},
@@ -80,9 +82,9 @@ WALLS = {
     "basement": {(2, 2), (3, 2), (0, 1)},
 }
 
-# -------------------------------------
-# 세션 상태
-# -------------------------------------
+# =========================================
+# 세션 상태 초기화
+# =========================================
 def initialize_game():
     defaults = {
         "started": False,
@@ -111,9 +113,10 @@ def initialize_game():
 
 initialize_game()
 
-# -------------------------------------
-# 게임 유틸리티
-# -------------------------------------
+
+# =========================================
+# 게임 공통 함수
+# =========================================
 def add_note(note):
     if note not in st.session_state.notes:
         st.session_state.notes.append(note)
@@ -154,13 +157,12 @@ def change_room(room):
     st.session_state.message = f"{ROOMS[room]['name']}에 들어왔습니다."
 
 
-# -------------------------------------
+# =========================================
 # 오브젝트 조사
-# -------------------------------------
+# =========================================
 def investigate(name):
     room = st.session_state.room
 
-    # 폐쇄 병동
     if room == "ward":
 
         if name == "침대 위 메모":
@@ -168,7 +170,7 @@ def investigate(name):
             st.session_state.message = "침대 밑에서 찢어진 메모를 발견했다."
 
         elif name == "벽의 달력":
-            add_note("달력: 2월 4일에 붉은색으로 표시되어 있다. 암호 단서일까?")
+            add_note("달력: 2월 4일에 붉은색으로 표시되어 있다.")
             st.session_state.message = "달력에서 2월 4일을 발견했다."
 
         elif name == "낡은 책상":
@@ -184,7 +186,6 @@ def investigate(name):
             else:
                 st.session_state.message = "문이 잠겨 있다. 병동 열쇠가 필요하다."
 
-    # 기록 보관실
     elif room == "records":
 
         if name == "환자 기록 선반":
@@ -204,7 +205,6 @@ def investigate(name):
             else:
                 st.session_state.message = "전원이 차단되어 문이 열리지 않는다."
 
-    # 중앙 통제실
     elif room == "control":
 
         if name == "발전기":
@@ -227,7 +227,6 @@ def investigate(name):
             else:
                 st.session_state.message = "엘리베이터에 전력이 공급되지 않는다."
 
-    # 지하 출구
     elif room == "basement":
 
         if name == "배관 메모":
@@ -240,16 +239,16 @@ def investigate(name):
 
         elif name == "문패":
             add_note("문패: 각 구역에서 숫자를 하나씩 찾아 순서대로 입력하라.")
-            add_note("병동 숫자 7, 기록실 숫자 3, 통제실 숫자 1, 지하 숫자 9")
+            add_note("구역 숫자: 병동 7, 기록실 3, 통제실 1, 지하 9")
             st.session_state.message = "네 구역의 숫자를 순서대로 모아야 한다."
 
         elif name == "최종 탈출문":
             open_password("최종 탈출문 암호", "final_door")
 
 
-# -------------------------------------
-# 비밀번호 확인
-# -------------------------------------
+# =========================================
+# 암호 확인
+# =========================================
 def check_password():
     answer = st.session_state.password_input.strip()
     target = st.session_state.password_target
@@ -258,13 +257,13 @@ def check_password():
 
     if target == "ward_drawer" and answer == "2417":
         add_item("병동 열쇠")
-        st.session_state.message = "서랍이 열렸다! 병동 열쇠를 획득했다."
         add_note("서랍 안에서 병동 열쇠를 발견했다.")
+        st.session_state.message = "서랍이 열렸다! 병동 열쇠를 획득했다."
 
     elif target == "records_drawer" and answer == "5831":
         add_item("비상 퓨즈")
-        st.session_state.message = "비상 퓨즈를 획득했다!"
         add_note("보관 서랍에서 비상 퓨즈를 발견했다.")
+        st.session_state.message = "비상 퓨즈를 획득했다!"
 
     elif target == "control_switch" and answer == "3142":
         if has_item("비상 퓨즈"):
@@ -281,12 +280,11 @@ def check_password():
         st.session_state.message = "암호가 틀렸다. 단서를 다시 확인하자."
 
     st.session_state.password_target = None
-    st.session_state.password_input = ""
 
 
-# -------------------------------------
-# 플레이어 이동
-# -------------------------------------
+# =========================================
+# WASD 이동
+# =========================================
 def move_player(key):
     room = st.session_state.room
     x, y = st.session_state.player
@@ -314,12 +312,16 @@ def move_player(key):
     st.session_state.player = [nx, ny]
 
 
+# =========================================
+# 주변 오브젝트 찾기
+# =========================================
 def nearby_object():
     room = st.session_state.room
     x, y = st.session_state.player
 
     for name, (ox, oy) in ROOMS[room]["objects"].items():
         distance = abs(x - ox) + abs(y - oy)
+
         if distance <= 1:
             return name
 
@@ -335,9 +337,9 @@ def interact():
         st.session_state.message = "주변에 조사할 물체가 없다."
 
 
-# -------------------------------------
+# =========================================
 # CSS
-# -------------------------------------
+# =========================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
@@ -387,31 +389,38 @@ h1, h2, h3 {
     background: #202c32;
     border: 1px solid #56646a;
     border-radius: 5px;
-    padding: 10px;
+    padding: 10px 3px;
+    min-height: 65px;
     text-align: center;
+    font-size: 12px;
 }
 
 .player-card {
     background: #263f48;
     border: 2px solid #b7dce5;
     border-radius: 5px;
-    padding: 12px;
+    padding: 12px 3px;
+    min-height: 65px;
     text-align: center;
-    font-size: 22px;
+    font-size: 18px;
 }
 
 .wall-card {
     background: #080b0d;
     border: 1px solid #151c20;
-    padding: 12px;
+    padding: 12px 3px;
+    min-height: 65px;
     text-align: center;
+    font-size: 12px;
 }
 
 .floor-card {
     background: #17242a;
     border: 1px solid #28383e;
-    padding: 12px;
+    padding: 12px 3px;
+    min-height: 65px;
     text-align: center;
+    color: #52636a;
 }
 
 div.stButton > button {
@@ -431,40 +440,42 @@ div.stButton > button:hover {
 """, unsafe_allow_html=True)
 
 
-# -------------------------------------
-# 타이틀 화면
-# -------------------------------------
+# =========================================
+# 시작 화면
+# =========================================
 if not st.session_state.started:
 
-    st.markdown("<div class='game-title'>ABANDONED HOSPITAL</div>", unsafe_allow_html=True)
-    st.markdown("<div class='subtitle'>THE LAST ESCAPE</div>", unsafe_allow_html=True)
-
-    st.write("")
-    st.write("")
-
-    st.image(
-        "https://images.unsplash.com/photo-1518709268805-4e9042af9f23",
-        use_container_width=True
+    st.markdown(
+        "<div class='game-title'>ABANDONED HOSPITAL</div>",
+        unsafe_allow_html=True
     )
+    st.markdown(
+        "<div class='subtitle'>THE LAST ESCAPE</div>",
+        unsafe_allow_html=True
+    )
+
+    st.write("")
 
     st.markdown("""
     <div class='game-panel'>
-    <h3>MISSION BRIEFING</h3>
-    버려진 병원에서 눈을 떴다.<br><br>
-    출입문은 잠겨 있고, 건물의 전력은 차단되어 있다.<br>
-    곳곳에 숨겨진 단서를 찾아 암호를 풀고 탈출해야 한다.<br><br>
-    <b>제한 시간: 30분</b><br>
-    <b>목표: 네 개의 구역을 탐험하고 최종 출구를 찾아라.</b>
+        <h3>MISSION BRIEFING</h3>
+        버려진 병원에서 눈을 떴다.<br><br>
+        출입문은 잠겨 있고, 건물의 전력은 차단되어 있다.<br>
+        곳곳에 숨겨진 단서를 찾아 암호를 풀고 탈출해야 한다.<br><br>
+        <b>제한 시간: 30분</b><br>
+        <b>목표: 네 개의 구역을 탐험하고 최종 출구를 찾아라.</b>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 조작 방법")
+    st.markdown("### 🎮 조작 방법")
     st.markdown("""
-    - `W` : 위로 이동
-    - `A` : 왼쪽으로 이동
-    - `S` : 아래로 이동
-    - `D` : 오른쪽으로 이동
-    - `E` : 주변 물체 조사
+    | 키 | 조작 |
+    |---|---|
+    | W | 위로 이동 |
+    | A | 왼쪽 이동 |
+    | S | 아래로 이동 |
+    | D | 오른쪽 이동 |
+    | E | 주변 물체 조사 |
     """)
 
     if st.button("▶ 게임 시작", use_container_width=True):
@@ -475,9 +486,9 @@ if not st.session_state.started:
     st.stop()
 
 
-# -------------------------------------
+# =========================================
 # 타이머
-# -------------------------------------
+# =========================================
 @st.fragment(run_every="1s")
 def timer_display():
     left = remaining_time()
@@ -494,23 +505,27 @@ def timer_display():
         st.rerun()
 
 
-# -------------------------------------
-# 종료 화면
-# -------------------------------------
+# =========================================
+# 게임 종료 화면
+# =========================================
 if st.session_state.finished:
 
-    st.markdown("<div class='game-title'>MISSION COMPLETE</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='game-title'>MISSION COMPLETE</div>",
+        unsafe_allow_html=True
+    )
 
     if st.session_state.escaped:
-        st.success("탈출 성공! 당신은 버려진 병원에서 살아 나왔다.")
+        st.success("탈출 성공! 버려진 병원에서 빠져나왔다.")
 
         elapsed = GAME_TIME - st.session_state.remaining
-        grade = "S"
 
         if st.session_state.hints >= 3 or st.session_state.attempts >= 8:
             grade = "B"
         elif st.session_state.hints >= 1 or st.session_state.attempts >= 5:
             grade = "A"
+        else:
+            grade = "S"
 
         st.markdown(f"## 최종 등급: {grade}")
         st.metric("탈출 소요 시간", f"{elapsed // 60}분 {elapsed % 60}초")
@@ -528,52 +543,62 @@ if st.session_state.finished:
     st.stop()
 
 
-# -------------------------------------
-# 게임 화면
-# -------------------------------------
-left, right = st.columns([2.2, 1])
+# =========================================
+# 게임 화면 제목과 타이머
+# =========================================
+title_col, timer_col = st.columns([2, 1])
 
-with left:
-    st.markdown("<div class='game-title'>ABANDONED HOSPITAL</div>", unsafe_allow_html=True)
+with title_col:
+    st.markdown(
+        "<div class='game-title'>ABANDONED HOSPITAL</div>",
+        unsafe_allow_html=True
+    )
     st.markdown(
         f"<div class='subtitle'>{ROOMS[st.session_state.room]['name']}</div>",
         unsafe_allow_html=True
     )
 
-with right:
+with timer_col:
     timer_display()
 
 st.divider()
 
-# 키보드 입력
+
+# =========================================
+# 키보드 컴포넌트
+# =========================================
 key_event = keyboard(
     key="hospital_keys",
     default=None
 )
 
-if key_event and key_event != st.session_state.last_key_id:
-    st.session_state.last_key_id = key_event
+if isinstance(key_event, dict):
+    event_id = key_event.get("id")
+    pressed_key = str(key_event.get("key", "")).lower()
 
-    key = key_event.get("key", "").lower() if isinstance(key_event, dict) else str(key_event).lower()
+    if event_id is not None and event_id != st.session_state.last_key_id:
+        st.session_state.last_key_id = event_id
 
-    if key in ["w", "a", "s", "d"]:
-        move_player(key)
-    elif key == "e":
-        interact()
+        if pressed_key in ["w", "a", "s", "d"]:
+            move_player(pressed_key)
 
-# -------------------------------------
-# 지도
-# -------------------------------------
+        elif pressed_key == "e":
+            interact()
+
+
+# =========================================
+# 지도 표시
+# =========================================
 room = st.session_state.room
 player_x, player_y = st.session_state.player
 objects = ROOMS[room]["objects"]
 walls = WALLS[room]
 
 st.markdown("### 🗺️ CURRENT AREA")
-st.caption("화면을 클릭한 뒤 WASD로 이동하세요. 물체에 가까이 다가가 E를 누르세요.")
+st.caption("키보드 입력 영역을 클릭한 뒤 WASD로 이동하세요. 물체 가까이에서 E를 누르세요.")
 
 for y in range(5):
-    cols = st.columns(5)
+    cols = st.columns(5, gap="small")
 
     for x in range(5):
         with cols[x]:
@@ -593,8 +618,8 @@ for y in range(5):
             else:
                 obj_name = None
 
-                for name, pos in objects.items():
-                    if pos == (x, y):
+                for name, position in objects.items():
+                    if position == (x, y):
                         obj_name = name
                         break
 
@@ -609,9 +634,10 @@ for y in range(5):
                         unsafe_allow_html=True
                     )
 
-# -------------------------------------
+
+# =========================================
 # 상호작용 안내
-# -------------------------------------
+# =========================================
 st.write("")
 
 obj = nearby_object()
@@ -623,9 +649,10 @@ else:
 
 st.markdown(f"**상태:** {st.session_state.message}")
 
-# -------------------------------------
-# 암호 입력
-# -------------------------------------
+
+# =========================================
+# 암호 입력창
+# =========================================
 if st.session_state.password_target:
 
     st.divider()
@@ -641,9 +668,10 @@ if st.session_state.password_target:
         check_password()
         st.rerun()
 
-# -------------------------------------
-# 인벤토리와 기록
-# -------------------------------------
+
+# =========================================
+# 인벤토리와 단서 기록
+# =========================================
 st.divider()
 
 col1, col2 = st.columns(2)
@@ -666,10 +694,12 @@ with col2:
     else:
         st.caption("아직 발견한 단서가 없습니다.")
 
-# -------------------------------------
+
+# =========================================
 # 힌트
-# -------------------------------------
+# =========================================
 with st.expander("💡 힌트 확인"):
+
     st.write("각 구역의 메모와 주변 물체를 자세히 조사하세요.")
 
     if st.button("힌트 보기"):
@@ -684,9 +714,10 @@ with st.expander("💡 힌트 확인"):
 
         st.warning(hints[st.session_state.room])
 
-# -------------------------------------
-# 구역 정보
-# -------------------------------------
+
+# =========================================
+# 구역 상태
+# =========================================
 st.divider()
 st.markdown("### 📍 AREA STATUS")
 
@@ -698,7 +729,7 @@ room_names = {
 }
 
 for key, name in room_names.items():
-    if key == room:
+    if key == st.session_state.room:
         st.markdown(f"🔴 **{name} — 현재 위치**")
     else:
         st.markdown(f"⚫ {name}")
