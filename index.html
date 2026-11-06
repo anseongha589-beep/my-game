@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            padding: 8px;
+            background: transparent;
+            color: #cbd5d9;
+            font-family: monospace;
+            text-align: center;
+        }
+
+        #gamepad {
+            border: 1px solid #53656d;
+            background: #142128;
+            border-radius: 8px;
+            padding: 10px;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .key {
+            display: inline-block;
+            background: #263d47;
+            border: 1px solid #78909a;
+            border-radius: 5px;
+            padding: 7px 12px;
+            margin: 2px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .active {
+            background: #718e9a;
+            color: #071014;
+        }
+
+        #help {
+            color: #8fa5ad;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="gamepad" tabindex="0">
+        <div>
+            <span class="key" id="w">W</span>
+        </div>
+        <div>
+            <span class="key" id="a">A</span>
+            <span class="key" id="s">S</span>
+            <span class="key" id="d">D</span>
+            <span class="key" id="e">E</span>
+        </div>
+        <div id="help">이 영역을 클릭한 뒤 키보드를 사용하세요.</div>
+    </div>
+
+    <script>
+        const gamepad = document.getElementById("gamepad");
+        const validKeys = ["w", "a", "s", "d", "e"];
+        let counter = 0;
+
+        function sendKey(key) {
+            counter++;
+
+            window.parent.postMessage({
+                isStreamlitMessage: true,
+                type: "streamlit:setComponentValue",
+                value: {
+                    key: key,
+                    id: counter
+                },
+                dataType: "json"
+            }, "*");
+        }
+
+        function focusGame() {
+            gamepad.focus();
+        }
+
+        gamepad.addEventListener("click", focusGame);
+
+        window.addEventListener("keydown", function(event) {
+            const key = event.key.toLowerCase();
+
+            if (validKeys.includes(key)) {
+                event.preventDefault();
+
+                const element = document.getElementById(key);
+                if (element) {
+                    element.classList.add("active");
+                }
+
+                sendKey(key);
+            }
+        });
+
+        window.addEventListener("keyup", function(event) {
+            const key = event.key.toLowerCase();
+            const element = document.getElementById(key);
+
+            if (element) {
+                element.classList.remove("active");
+            }
+        });
+
+        window.addEventListener("load", function() {
+            window.parent.postMessage({
+                isStreamlitMessage: true,
+                type: "streamlit:componentReady",
+                apiVersion: 1
+            }, "*");
+
+            window.parent.postMessage({
+                isStreamlitMessage: true,
+                type: "streamlit:setFrameHeight",
+                height: 90
+            }, "*");
+        });
+    </script>
+</body>
+</html>
